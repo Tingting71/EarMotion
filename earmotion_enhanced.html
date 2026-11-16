@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarMotion Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --navy:      #0D1B3E;
+    --teal:      #028090;
+    --accent:    #00D4AA;
+    --white:     #FFFFFF;
+    --offwhite:  #F4F7F9;
+    --card:      #FFFFFF;
+    --border:    #E2EAF0;
+    --text:      #1A2744;
+    --muted:     #64748B;
+    --calm:      #02C39A;
+    --excited:   #F59E0B;
+    --stressed:  #EF4444;
+    --sad:       #6366F1;
+    --radius:    14px;
+    --shadow:    0 4px 24px rgba(13,27,62,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--offwhite);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 58px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .logo-circle {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--teal), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: white;
+  }
+  .brand { font-size: 17px; font-weight: 600; color: white; letter-spacing: -0.3px; }
+  .topbar-controls { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    padding: 7px 14px; border-radius: 8px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.18s;
+  }
+  .btn-ghost { background: rgba(255,255,255,0.10); color: white; }
+  .btn-ghost:hover { background: rgba(255,255,255,0.20); }
+  .btn-accent { background: var(--accent); color: var(--navy); font-weight: 600; }
+  .btn-accent:hover { filter: brightness(1.1); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* ── VIEW SWITCHER ── */
+  .view-switcher {
+    display: flex; gap: 0; margin: 0 auto;
+    background: rgba(255,255,255,0.10); border-radius: 10px; padding: 3px;
+  }
+  .view-btn {
+    padding: 5px 16px; border-radius: 8px; border: none;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    background: transparent; color: rgba(255,255,255,0.65);
+    transition: all 0.2s; font-family: 'DM Sans', sans-serif;
+  }
+  .view-btn.active { background: white; color: var(--navy); font-weight: 600; }
+
+  /* ── STATUS BAR ── */
+  .statusbar {
+    background: var(--navy);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 28px;
+  }
+  .status-pill {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; color: rgba(255,255,255,0.7);
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #94A3B8; animation: none;
+  }
+  .status-dot.active { background: var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse {
+    0%,100% { opacity:1; } 50% { opacity:0.4; }
+  }
+  .emotion-badge {
+    padding: 4px 12px; border-radius: 20px; font-size: 12px;
+    font-weight: 600; letter-spacing: 0.3px;
+  }
+
+  /* ── LAYOUTS ── */
+  #view-user, #view-caregiver { display: none; padding: 24px 28px; }
+  #view-user.active, #view-caregiver.active { display: block; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
+  .card-body { padding: 16px 20px; }
+
+  /* ── EMOTION CIRCLE (user view) ── */
+  .emotion-hero {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 32px 20px;
+    background: linear-gradient(145deg, #0D1B3E 0%, #028090 100%);
+    border-radius: var(--radius); color: white; position: relative; overflow: hidden;
+  }
+  .emotion-ring {
+    width: 140px; height: 140px; border-radius: 50%;
+    border: 4px solid rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; margin-bottom: 20px;
+    transition: border-color 0.5s;
+  }
+  .emotion-ring::before {
+    content:''; position:absolute; inset:-6px; border-radius:50%;
+    border: 2px solid transparent; border-top-color: var(--accent);
+    animation: spin 3s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .emotion-emoji { font-size: 56px; line-height:1; }
+  .emotion-label {
+    font-size: 26px; font-weight: 700; letter-spacing:-0.5px;
+    margin-bottom: 6px;
+  }
+  .emotion-sub { font-size: 13px; opacity: 0.7; }
+  .emotion-bg-glow {
+    position: absolute; width:200px; height:200px; border-radius:50%;
+    background: var(--accent); opacity: 0.07; top:-50px; right:-50px;
+    pointer-events: none;
+  }
+
+  /* ── METRIC BARS ── */
+  .metric-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .metric-label { font-size: 12px; color: var(--muted); width: 50px; flex-shrink:0; }
+  .metric-bar-bg {
+    flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow:hidden;
+  }
+  .metric-bar-fill {
+    height:100%; border-radius:4px; transition: width 0.4s ease;
+  }
+  .metric-value { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--muted); width: 36px; text-align:right; }
+
+  /* ── TABS ── */
+  .tabs { display:flex; gap:4px; padding: 12px 20px 0; }
+  .tab {
+    padding: 6px 14px; border-radius: 8px 8px 0 0; border: none;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    background: transparent; color: var(--muted); font-family:'DM Sans',sans-serif;
+    border-bottom: 2px solid transparent; transition: all 0.15s;
+  }
+  .tab.active { color: var(--navy); font-weight: 600; border-bottom-color: var(--teal); }
+
+  /* ── CHARTS ── */
+  canvas { border-radius: 8px; }
+  .chart-wrap { padding: 4px 0; }
+
+  /* ── HOURLY TIMELINE ── */
+  .hourly-timeline {
+    display: flex; gap: 3px; align-items: flex-end;
+    height: 64px; padding: 8px 0 0;
+  }
+  .hour-bar {
+    flex:1; border-radius: 4px 4px 0 0; cursor: pointer;
+    transition: opacity 0.2s; position: relative; min-width: 0;
+  }
+  .hour-bar:hover { opacity: 0.75; }
+  .hour-bar:hover .hour-tooltip {
+    opacity:1; transform: translateY(-4px);
+  }
+  .hour-tooltip {
+    position: absolute; bottom: calc(100% + 4px); left: 50%;
+    transform: translateX(-50%); background: var(--navy); color:white;
+    font-size: 10px; padding: 3px 6px; border-radius: 5px; white-space: nowrap;
+    opacity:0; transition: all 0.15s; pointer-events:none; z-index:10;
+  }
+  .hour-labels {
+    display:flex; justify-content: space-between;
+    font-size: 10px; color: var(--muted); padding-top: 4px;
+  }
+
+  /* ── STAT CARDS ── */
+  .stat-card {
+    background: var(--offwhite); border-radius: 10px; padding: 14px 16px;
+    border: 1px solid var(--border);
+  }
+  .stat-num { font-size: 28px; font-weight: 700; line-height:1; letter-spacing:-1px; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; font-weight:500; }
+
+  /* ── ALERT ITEMS ── */
+  .alert-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-icon {
+    width: 36px; height:36px; border-radius: 10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; flex-shrink:0;
+  }
+  .alert-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .alert-text { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  /* ── CHATBOT ── */
+  #chatbot-overlay {
+    position: fixed; inset:0; z-index: 1000;
+    display: none; align-items: flex-end; justify-content: flex-end;
+    padding: 24px; pointer-events: none;
+  }
+  #chatbot-overlay.visible { display: flex; }
+  #chatbot-panel {
+    pointer-events: all;
+    width: 340px; background: var(--card);
+    border-radius: 20px; box-shadow: 0 20px 60px rgba(13,27,62,0.25);
+    overflow: hidden; display: flex; flex-direction: column;
+    animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    max-height: 480px;
+  }
+  @keyframes slideUp {
+    from { opacity:0; transform: translateY(24px) scale(0.95); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+  }
+  .chat-header {
+    background: linear-gradient(135deg, var(--navy), var(--teal));
+    padding: 16px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .chat-header-left { display: flex; align-items: center; gap: 10px; }
+  .chat-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .chat-name { font-size: 14px; font-weight: 600; color: white; }
+  .chat-status-text { font-size: 11px; color: rgba(255,255,255,0.65); }
+  .chat-close {
+    background: rgba(255,255,255,0.15); border: none; color: white;
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    font-size: 14px; display:flex; align-items:center; justify-content:center;
+    transition: background 0.2s;
+  }
+  .chat-close:hover { background: rgba(255,255,255,0.25); }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    background: #F8FAFC;
+  }
+  .chat-msg {
+    max-width: 85%; padding: 10px 14px; border-radius: 16px;
+    font-size: 13px; line-height: 1.5; animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+  .chat-msg.bot {
+    background: white; color: var(--text);
+    border-radius: 4px 16px 16px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    align-self: flex-start;
+  }
+  .chat-msg.user {
+    background: var(--navy); color: white;
+    border-radius: 16px 16px 4px 16px; align-self: flex-end;
+  }
+  .chat-typing {
+    display: flex; gap: 4px; align-items: center; padding: 10px 14px;
+    background: white; border-radius: 4px 16px 16px 16px; align-self: flex-start;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .dot { width:6px; height:6px; background: var(--muted); border-radius:50%; animation: bounce 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay:0.2s; }
+  .dot:nth-child(3) { animation-delay:0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+  .chat-input-row {
+    display: flex; gap: 8px; padding: 12px 14px;
+    border-top: 1px solid var(--border); background: white;
+  }
+  .chat-input {
+    flex:1; border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px; font-size: 13px; font-family:'DM Sans',sans-serif;
+    outline: none; transition: border-color 0.2s;
+  }
+  .chat-input:focus { border-color: var(--teal); }
+  .chat-send {
+    background: var(--teal); color: white; border: none;
+    border-radius: 10px; padding: 8px 14px; cursor: pointer;
+    font-size: 14px; transition: filter 0.2s;
+  }
+  .chat-send:hover { filter: brightness(1.1); }
+
+  /* ── FLOATING CHAT BUTTON ── */
+  #chat-fab {
+    position: fixed; bottom: 24px; right: 24px; z-index: 999;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--navy), var(--teal));
+    border: none; cursor: pointer; color: white; font-size: 22px;
+    box-shadow: 0 8px 24px rgba(13,27,62,0.3);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s; display: none;
+  }
+  #chat-fab:hover { transform: scale(1.08); }
+  #chat-fab .notif-dot {
+    position:absolute; top:6px; right:6px; width:12px; height:12px;
+    background: var(--stressed); border-radius:50%; border:2px solid white;
+    display:none;
+  }
+
+  /* ── CAREGIVER SPECIFIC ── */
+  .care-emotion-strip {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .care-chip {
+    padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  }
+  .timeline-entry {
+    display: flex; gap: 12px; padding: 10px 0;
+    border-bottom: 1px solid var(--border); align-items: center;
+  }
+  .timeline-entry:last-child { border-bottom:none; }
+  .timeline-time {
+    font-size: 11px; font-family: 'DM Mono', monospace;
+    color: var(--muted); width: 45px; flex-shrink:0;
+  }
+  .timeline-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink:0;
+  }
+  .timeline-text { font-size: 13px; color: var(--text); }
+  .risk-meter {
+    height: 10px; background: var(--border); border-radius: 5px; overflow:hidden; margin-top: 8px;
+  }
+  .risk-fill {
+    height:100%; border-radius:5px; transition: width 1s ease, background 1s ease;
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    #chatbot-panel { width: calc(100vw - 48px); }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-circle">EM</div>
+    <span class="brand">EarMotion</span>
+  </div>
+  <div class="view-switcher">
+    <button class="view-btn active" onclick="switchView('user')">👤 User View</button>
+    <button class="view-btn" onclick="switchView('caregiver')">🏥 Caregiver View</button>
+  </div>
+  <div class="topbar-controls">
+    <button class="btn btn-ghost btn-sm" onclick="toggleDemo()">Demo Mode</button>
+    <button class="btn btn-ghost btn-sm" id="connectBtn" onclick="toggleConnection()">Connect</button>
+    <button class="btn btn-accent btn-sm" onclick="downloadCSV()">↓ CSV</button>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="status-pill">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Not Connected</span>
+  </div>
+  <span id="emotionBadge" class="emotion-badge" style="background:#E2EAF0;color:#64748B;">— No Data —</span>
+  <div class="status-pill">
+    <span style="font-size:11px;color:rgba(255,255,255,0.5);">Session: <span id="sessionTime" style="font-family:'DM Mono',monospace;color:rgba(255,255,255,0.8)">00:00</span></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!--          USER VIEW                      -->
+<!-- ═══════════════════════════════════════ -->
+<div id="view-user" class="active">
+  <div class="grid-2" style="margin-bottom:20px;">
+
+    <!-- Emotion Hero -->
+    <div class="emotion-hero">
+      <div class="emotion-bg-glow"></div>
+      <div class="emotion-ring" id="emotionRing">
+        <span class="emotion-emoji" id="emotionEmoji">😐</span>
+      </div>
+      <div class="emotion-label" id="emotionLabel">Waiting…</div>
+      <div class="emotion-sub" id="emotionSub">Start demo to begin monitoring</div>
+    </div>
+
+    <!-- Signal Levels -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Live Signal Levels</span>
+        <span style="font-size:11px;color:var(--muted);" id="signalAge">–</span>
+      </div>
+      <div class="card-body">
+        <div class="metric-row">
+          <span class="metric-label" style="font-size:11px">Alpha</span>
+          <div class="metric-bar-bg"><div class="metric-bar-fill" id="barAlpha" style="width:0%;background:#A2D2FF"></div></div>
+          <span class="metric-value" id="valAlpha">–</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label" style="font-size:11px">Beta</span>
+          <div class="metric-bar-bg"><div class="metric-bar-fill" id="barBeta" style="width:0%;background:#FFAFCC"></div></div>
+          <span class="metric-value" id="valBeta">–</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label" style="font-size:11px">EMG</span>
+          <div class="metric-bar-bg"><div class="metric-bar-fill" id="barEMG" style="width:0%;background:#BDE0FE"></div></div>
+          <span class="metric-value" id="valEMG">–</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label" style="font-size:11px">Arousal</span>
+          <div class="metric-bar-bg"><div class="metric-bar-fill" id="barArousal" style="width:0%;background:var(--accent)"></div></div>
+          <span class="metric-value" id="valArousal">–</span>
+        </div>
+
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border)">
+          <div class="section-label">Valence & Arousal</div>
+          <canvas id="eegChart" height="90"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hourly Emotion Timeline -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <span class="card-title">Hourly Emotion Timeline — Today</span>
+      <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:var(--muted);">
+        <span style="display:flex;gap:4px;align-items:center"><span style="width:8px;height:8px;border-radius:2px;background:var(--calm);display:inline-block"></span>Calm</span>
+        <span style="display:flex;gap:4px;align-items:center"><span style="width:8px;height:8px;border-radius:2px;background:var(--excited);display:inline-block"></span>Excited</span>
+        <span style="display:flex;gap:4px;align-items:center"><span style="width:8px;height:8px;border-radius:2px;background:var(--stressed);display:inline-block"></span>Stressed</span>
+        <span style="display:flex;gap:4px;align-items:center"><span style="width:8px;height:8px;border-radius:2px;background:var(--sad);display:inline-block"></span>Sad</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="hourly-timeline" id="hourlyBars"></div>
+      <div class="hour-labels" id="hourLabels"></div>
+    </div>
+  </div>
+
+  <!-- EEG + EMG Charts -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><span class="card-title">EEG — Raw Signal</span></div>
+      <div class="card-body"><canvas id="eegRawChart" height="100"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">EMG — Facial Activity</span></div>
+      <div class="card-body"><canvas id="emgRawChart" height="100"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!--       CAREGIVER VIEW                    -->
+<!-- ═══════════════════════════════════════ -->
+<div id="view-caregiver">
+  <div class="grid-3" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-body" style="text-align:center; padding: 20px;">
+        <div style="font-size:32px; margin-bottom:8px;" id="careEmoji">😐</div>
+        <div style="font-size:22px; font-weight:700; margin-bottom:4px;" id="careEmotion">–</div>
+        <div style="font-size:12px; color:var(--muted)">Current State</div>
+      </div>
+    </div>
+    <div class="stat-card" style="display:flex;flex-direction:column;justify-content:center;">
+      <div class="stat-num" id="stressMinutes">0<span style="font-size:16px;font-weight:400">min</span></div>
+      <div class="stat-label">Stressed / Sad today</div>
+      <div class="risk-meter" style="margin-top:10px;">
+        <div class="risk-fill" id="riskFill" style="width:0%;background:var(--calm)"></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">Distress Level</div>
+    </div>
+    <div class="stat-card" style="display:flex;flex-direction:column;justify-content:center;">
+      <div class="stat-num" id="emotionSwitches">0</div>
+      <div class="stat-label">Emotion changes today</div>
+      <div style="margin-top:10px;">
+        <div class="care-emotion-strip" id="emotionStrip"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:20px;">
+    <!-- Hourly overview for caregiver -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Today's Emotional Pattern</span>
+        <span style="font-size:11px;color:var(--muted)">Hover bars for detail</span>
+      </div>
+      <div class="card-body">
+        <div class="hourly-timeline" id="careHourlyBars"></div>
+        <div class="hour-labels" id="careHourLabels"></div>
+        <div style="margin-top:16px;">
+          <canvas id="careTrendChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert log -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Alert Log</span>
+        <span id="alertCount" style="background:var(--stressed);color:white;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;">0</span>
+      </div>
+      <div class="card-body" id="alertLog" style="max-height:280px;overflow-y:auto;">
+        <div style="text-align:center;color:var(--muted);font-size:13px;padding:24px 0">
+          No alerts yet
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7-day trend -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">7-Day Emotion History</span>
+    </div>
+    <div class="card-body">
+      <canvas id="weekTrendChart" height="80"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHATBOT OVERLAY ── -->
+<div id="chatbot-overlay">
+  <div id="chatbot-panel">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <div class="chat-avatar">🤝</div>
+        <div>
+          <div class="chat-name">EarMotion Companion</div>
+          <div class="chat-status-text">Here to support you</div>
+        </div>
+      </div>
+      <button class="chat-close" onclick="closeChat()">✕</button>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendUserMessage()">
+      <button class="chat-send" onclick="sendUserMessage()">→</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── FLOATING CHAT BUTTON ── -->
+<button id="chat-fab" onclick="openChat()">
+  💬
+  <div class="notif-dot" id="chatNotifDot"></div>
+</button>
+
+<script>
+// ═══════════════════ CONFIG ═══════════════════
+const EMOTION_CONFIG = {
+  Calm:    { emoji:'😌', color:'#02C39A', bg:'rgba(2,195,154,0.12)', label:'Feeling calm & relaxed' },
+  Excited: { emoji:'😄', color:'#F59E0B', bg:'rgba(245,158,11,0.12)', label:'Energy is high' },
+  Stressed:{ emoji:'😰', color:'#EF4444', bg:'rgba(239,68,68,0.12)',  label:'Stress detected' },
+  Sad:     { emoji:'😔', color:'#6366F1', bg:'rgba(99,102,241,0.12)', label:'Low mood detected' },
+};
+const NEGATIVE = ['Stressed','Sad'];
+
+// ═══════════════════ STATE ═══════════════════
+let demoMode = false, connected = false, darkMode = false;
+let currentEmotion = null, targetEmotion = 'Calm', demoHold = 0;
+let sampleRate = 128, maxPoints = 256;
+let eegRaw=[], alphaArr=[], betaArr=[], emgArr=[], labels=[];
+let recordedData=[], recording=false, startTime=0;
+let sessionSeconds = 0;
+let stressSeconds = 0;
+let emotionSwitchCount = 0;
+let lastLoggedEmotion = null;
+let bleDevice = null;
+
+// Hourly data: array of 24 items
+let hourlyData = Array(24).fill(null).map((_,i)=>({
+  hour: i, dominant: null,
+  emotions: { Calm:0, Excited:0, Stressed:0, Sad:0 }
+}));
+
+let alertLog = [];
+
+// Demo 7-day data
+const demo7Day = [
+  {date:'5/08',stressed:12,calm:35,excited:8,sad:5},
+  {date:'5/09',stressed:28,calm:18,excited:4,sad:10},
+  {date:'5/10',stressed:8, calm:42,excited:10,sad:0},
+  {date:'5/11',stressed:5, calm:50,excited:5,sad:0},
+  {date:'5/12',stressed:20,calm:25,excited:15,sad:0},
+  {date:'5/13',stressed:15,calm:30,excited:12,sad:3},
+  {date:'5/14',stressed:0, calm:0, excited:0, sad:0},
+];
+
+// ═══════════════════ VIEW SWITCHING ═══════════════════
+function switchView(v) {
+  document.getElementById('view-user').classList.toggle('active', v==='user');
+  document.getElementById('view-caregiver').classList.toggle('active', v==='caregiver');
+  document.querySelectorAll('.view-btn').forEach((b,i)=>b.classList.toggle('active',
+    (i===0&&v==='user')||(i===1&&v==='caregiver')));
+  if(v==='caregiver') updateCaregiverView();
+}
+
+// ═══════════════════ CHARTS ═══════════════════
+const eegChart = new Chart(document.getElementById('eegChart'),{
+  type:'line',
+  data:{ labels:[],
+    datasets:[
+      {label:'Alpha',data:[],borderColor:'#A2D2FF',borderWidth:1.5,pointRadius:0,tension:0.4,fill:false},
+      {label:'Beta', data:[],borderColor:'#FFAFCC',borderWidth:1.5,pointRadius:0,tension:0.4,fill:false}
+    ]
+  },
+  options:{animation:false,responsive:true,
+    plugins:{legend:{labels:{font:{size:10},color:'#64748B'}}},
+    scales:{x:{display:false},y:{display:true,ticks:{font:{size:9},color:'#94A3B8'},grid:{color:'rgba(0,0,0,0.04)'}}}
+  }
+});
+
+const eegRawChart = new Chart(document.getElementById('eegRawChart'),{
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'Raw EEG',data:[],borderColor:'#CDB4DB',borderWidth:1.5,pointRadius:0,tension:0.3,fill:true,backgroundColor:'rgba(205,180,219,0.08)'},
+    {label:'Alpha',  data:[],borderColor:'#A2D2FF',borderWidth:1,  pointRadius:0,tension:0.3},
+    {label:'Beta',   data:[],borderColor:'#FFAFCC',borderWidth:1,  pointRadius:0,tension:0.3},
+  ]},
+  options:{animation:false,responsive:true,
+    plugins:{legend:{labels:{font:{size:10},color:'#64748B'}}},
+    scales:{x:{display:false},y:{display:true,ticks:{font:{size:9},color:'#94A3B8'},grid:{color:'rgba(0,0,0,0.04)'}}}
+  }
+});
+
+const emgRawChart = new Chart(document.getElementById('emgRawChart'),{
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'EMG',data:[],borderColor:'#BDE0FE',borderWidth:1.5,pointRadius:0,tension:0.3,fill:true,backgroundColor:'rgba(189,224,254,0.10)'}
+  ]},
+  options:{animation:false,responsive:true,
+    plugins:{legend:{labels:{font:{size:10},color:'#64748B'}}},
+    scales:{x:{display:false},y:{display:true,ticks:{font:{size:9},color:'#94A3B8'},grid:{color:'rgba(0,0,0,0.04)'}}}
+  }
+});
+
+const careTrendChart = new Chart(document.getElementById('careTrendChart'),{
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'Stress Index',data:[],borderColor:'#EF4444',borderWidth:2,pointRadius:2,tension:0.4,fill:true,backgroundColor:'rgba(239,68,68,0.08)'}
+  ]},
+  options:{animation:false,responsive:true,
+    plugins:{legend:{labels:{font:{size:10}}}},
+    scales:{x:{display:false},y:{display:true,min:0,max:100,ticks:{font:{size:9},color:'#94A3B8'}}}
+  }
+});
+
+const weekTrendChart = new Chart(document.getElementById('weekTrendChart'),{
+  type:'bar',
+  data:{labels:demo7Day.map(d=>d.date),
+    datasets:[
+      {label:'Stressed', data:demo7Day.map(d=>d.stressed), backgroundColor:'rgba(239,68,68,0.7)',borderRadius:4},
+      {label:'Sad',      data:demo7Day.map(d=>d.sad),      backgroundColor:'rgba(99,102,241,0.7)',borderRadius:4},
+      {label:'Calm',     data:demo7Day.map(d=>d.calm),     backgroundColor:'rgba(2,195,154,0.7)', borderRadius:4},
+      {label:'Excited',  data:demo7Day.map(d=>d.excited),  backgroundColor:'rgba(245,158,11,0.7)',borderRadius:4},
+    ]
+  },
+  options:{responsive:true,
+    plugins:{legend:{labels:{font:{size:10}}}},
+    scales:{x:{stacked:true,ticks:{font:{size:10}}},y:{stacked:true,ticks:{font:{size:10}},beginAtZero:true}}
+  }
+});
+
+// ═══════════════════ HOURLY BARS ═══════════════════
+function buildHourlyBars(containerId, labelId) {
+  const cont = document.getElementById(containerId);
+  const lbls = document.getElementById(labelId);
+  cont.innerHTML=''; lbls.innerHTML='';
+  const now = new Date().getHours();
+  hourlyData.forEach((h,i)=>{
+    const bar = document.createElement('div');
+    bar.className = 'hour-bar';
+    bar.id = containerId+'-bar-'+i;
+    const pct = h.dominant ? 40 + Math.random()*40 : 8;
+    const col = h.dominant ? EMOTION_CONFIG[h.dominant].color : '#E2EAF0';
+    bar.style.cssText = `height:${pct}%;background:${col};opacity:${i>now?0.35:1}`;
+    const tip = document.createElement('div');
+    tip.className='hour-tooltip';
+    tip.textContent = h.dominant ? `${i}:00 – ${h.dominant}` : `${i}:00 – No data`;
+    bar.appendChild(tip);
+    cont.appendChild(bar);
+  });
+  // Labels every 4h
+  for(let i=0;i<24;i+=4){
+    const lbl=document.createElement('span');
+    lbl.textContent=i+':00';
+    lbls.appendChild(lbl);
+  }
+}
+
+function updateHourlyBar(hour) {
+  const h = hourlyData[hour];
+  const dominant = Object.entries(h.emotions).sort((a,b)=>b[1]-a[1])[0];
+  h.dominant = dominant[1]>0 ? dominant[0] : null;
+  ['hourlyBars','careHourlyBars'].forEach(cid=>{
+    const bar = document.getElementById(cid+'-bar-'+hour);
+    if(!bar) return;
+    const pct = h.dominant ? 40+Math.random()*40 : 8;
+    bar.style.height = pct+'%';
+    bar.style.background = h.dominant ? EMOTION_CONFIG[h.dominant].color : '#E2EAF0';
+    bar.querySelector('.hour-tooltip').textContent =
+      h.dominant ? `${hour}:00 – ${h.dominant}` : `${hour}:00 – No data`;
+  });
+}
+
+// ═══════════════════ EMOTION UPDATE ═══════════════════
+let stressIndex = 0;
+const stressHistory = [];
+
+function updateEmotion(alpha, beta, emg) {
+  const total = alpha+beta||1;
+  const alphaR = alpha/total, betaR = beta/total;
+  const baseline = 20;
+  const emgN = emg/baseline;
+  const valence = alphaR>betaR?'positive':'negative';
+  const arousal  = emgN<1.5?'low':'high';
+
+  let state;
+  if(valence==='positive'&&arousal==='low') state='Calm';
+  else if(valence==='positive') state='Excited';
+  else if(valence==='negative'&&arousal==='low') state='Sad';
+  else state='Stressed';
+
+  // Stress index
+  stressIndex = state==='Stressed'?Math.min(100,stressIndex+2):
+                state==='Sad'?Math.min(100,stressIndex+1):
+                Math.max(0,stressIndex-1);
+  stressHistory.push(stressIndex);
+  if(stressHistory.length>60) stressHistory.shift();
+
+  if(state!==currentEmotion){
+    if(lastLoggedEmotion!==null) emotionSwitchCount++;
+    lastLoggedEmotion=state;
+    if(NEGATIVE.includes(state)) triggerAlert(state);
+    if(NEGATIVE.includes(state)&&!NEGATIVE.includes(currentEmotion)){
+      triggerChatbot(state);
+    }
+  }
+  currentEmotion=state;
+
+  // Hourly tracking
+  const h = new Date().getHours();
+  hourlyData[h].emotions[state]++;
+  if(Math.random()<0.05) updateHourlyBar(h);
+
+  // Stress minutes counter
+  if(NEGATIVE.includes(state)) stressSeconds++;
+
+  updateUI(alpha,beta,emg,state);
+}
+
+function updateUI(alpha,beta,emg,state){
+  const cfg = EMOTION_CONFIG[state];
+
+  // Status bar badge
+  const badge = document.getElementById('emotionBadge');
+  badge.textContent=cfg.emoji+' '+state;
+  badge.style.background=cfg.bg; badge.style.color=cfg.color;
+
+  // User view
+  document.getElementById('emotionEmoji').textContent=cfg.emoji;
+  document.getElementById('emotionLabel').textContent=state;
+  document.getElementById('emotionSub').textContent=cfg.label;
+  document.getElementById('emotionRing').style.borderColor=cfg.color+'66';
+
+  // Metric bars
+  const alphaPct=Math.min(100,(alpha/80)*100);
+  const betaPct =Math.min(100,(beta/80)*100);
+  const emgPct  =Math.min(100,(emg/80)*100);
+  const arousalPct=Math.min(100,stressIndex);
+  document.getElementById('barAlpha').style.width=alphaPct+'%';
+  document.getElementById('barBeta').style.width=betaPct+'%';
+  document.getElementById('barEMG').style.width=emgPct+'%';
+  document.getElementById('barArousal').style.width=arousalPct+'%';
+  document.getElementById('barArousal').style.background=
+    arousalPct>60?'#EF4444':arousalPct>30?'#F59E0B':'#02C39A';
+  document.getElementById('valAlpha').textContent=alpha.toFixed(0);
+  document.getElementById('valBeta').textContent=beta.toFixed(0);
+  document.getElementById('valEMG').textContent=emg.toFixed(0);
+  document.getElementById('valArousal').textContent=arousalPct.toFixed(0);
+  document.getElementById('signalAge').textContent='Live';
+
+  // Caregiver fast update
+  document.getElementById('careEmoji').textContent=cfg.emoji;
+  document.getElementById('careEmotion').textContent=state;
+  document.getElementById('careEmotion').style.color=cfg.color;
+
+  const sm=Math.floor(stressSeconds/60);
+  document.getElementById('stressMinutes').innerHTML=
+    sm+'<span style="font-size:16px;font-weight:400">min</span>';
+  document.getElementById('emotionSwitches').textContent=emotionSwitchCount;
+
+  const rp=Math.min(100,stressIndex);
+  document.getElementById('riskFill').style.width=rp+'%';
+  document.getElementById('riskFill').style.background=
+    rp>60?'#EF4444':rp>30?'#F59E0B':'#02C39A';
+
+  // Caregiver trend chart update
+  careTrendChart.data.labels.push('');
+  careTrendChart.data.datasets[0].data.push(stressIndex);
+  if(careTrendChart.data.labels.length>60){
+    careTrendChart.data.labels.shift();
+    careTrendChart.data.datasets[0].data.shift();
+  }
+  careTrendChart.update('none');
+
+  // Update emotion strip
+  updateEmotionStrip();
+}
+
+function updateEmotionStrip(){
+  const strip = document.getElementById('emotionStrip');
+  strip.innerHTML='';
+  Object.entries(EMOTION_CONFIG).forEach(([name,cfg])=>{
+    const h=hourlyData[new Date().getHours()].emotions[name];
+    if(h>0){
+      const chip=document.createElement('span');
+      chip.className='care-chip';
+      chip.style.cssText=`background:${cfg.bg};color:${cfg.color}`;
+      chip.textContent=cfg.emoji+' '+name+' ×'+h;
+      strip.appendChild(chip);
+    }
+  });
+}
+
+// ═══════════════════ ALERT SYSTEM ═══════════════════
+let alertCount=0;
+function triggerAlert(state){
+  alertCount++;
+  const cfg=EMOTION_CONFIG[state];
+  const now=new Date();
+  const timeStr=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+  alertLog.unshift({state,time:timeStr,cfg});
+  if(alertLog.length>20) alertLog.pop();
+  document.getElementById('alertCount').textContent=alertCount;
+  renderAlerts();
+}
+
+function renderAlerts(){
+  const log=document.getElementById('alertLog');
+  if(alertLog.length===0){
+    log.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:24px 0">No alerts yet</div>';
+    return;
+  }
+  log.innerHTML=alertLog.map(a=>`
+    <div class="alert-item">
+      <div class="alert-icon" style="background:${a.cfg.bg}">${a.cfg.emoji}</div>
+      <div>
+        <div class="alert-text">${a.state} detected</div>
+        <div class="alert-time">${a.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+function updateCaregiverView(){
+  buildHourlyBars('careHourlyBars','careHourLabels');
+}
+
+// ═══════════════════ RAW DATA CHARTS ═══════════════════
+function pushChartData(raw,alpha,beta,emg){
+  const t=Date.now()/1000;
+  eegRaw.push(raw); alphaArr.push(alpha); betaArr.push(beta); emgArr.push(emg); labels.push(t);
+  if(labels.length>maxPoints){
+    eegRaw.shift();alphaArr.shift();betaArr.shift();emgArr.shift();labels.shift();
+  }
+  eegRawChart.data.labels=labels;
+  eegRawChart.data.datasets[0].data=eegRaw;
+  eegRawChart.data.datasets[1].data=alphaArr;
+  eegRawChart.data.datasets[2].data=betaArr;
+  eegRawChart.update('none');
+  emgRawChart.data.labels=labels;
+  emgRawChart.data.datasets[0].data=emgArr;
+  emgRawChart.update('none');
+
+  // valence chart
+  eegChart.data.labels=labels.slice(-60);
+  eegChart.data.datasets[0].data=alphaArr.slice(-60);
+  eegChart.data.datasets[1].data=betaArr.slice(-60);
+  eegChart.update('none');
+}
+
+// ═══════════════════ DEMO MODE ═══════════════════
+function toggleDemo(){
+  demoMode=!demoMode;
+  if(demoMode){
+    connected=false;
+    document.getElementById('statusText').textContent='Demo Mode';
+    document.getElementById('statusDot').classList.add('active');
+    document.getElementById('chat-fab').style.display='flex';
+    buildHourlyBars('hourlyBars','hourLabels');
+    buildHourlyBars('careHourlyBars','careHourLabels');
+    // Pre-fill some hourly data for realism
+    prefillHourlyDemo();
+    targetEmotion='Calm'; demoHold=0;
+    runDemo();
+    startSessionTimer();
+  }
+}
+
+function prefillHourlyDemo(){
+  const now=new Date().getHours();
+  const sequence=['Calm','Calm','Excited','Calm','Stressed','Calm','Sad','Calm','Excited','Calm','Calm','Stressed'];
+  for(let i=0;i<Math.min(now,sequence.length);i++){
+    const e=sequence[i]||'Calm';
+    hourlyData[i].emotions[e]=Math.floor(Math.random()*200+50);
+    hourlyData[i].dominant=e;
+    updateHourlyBar(i);
+  }
+}
+
+function runDemo(){
+  if(!demoMode) return;
+  const states=['Calm','Excited','Stressed','Sad'];
+  if(demoHold<=0){
+    targetEmotion=states[Math.floor(Math.random()*states.length)];
+    demoHold=3+Math.random()*3;
+  } else { demoHold-=1/sampleRate; }
+
+  const noise=()=>(Math.random()-0.5)*2;
+  let alpha,beta,emg;
+  switch(targetEmotion){
+    case 'Calm':    alpha=45+noise()*2;beta=15+noise()*2;emg=12+noise()*1;break;
+    case 'Excited': alpha=35+noise()*2;beta=45+noise()*2;emg=35+noise()*2;break;
+    case 'Stressed':alpha=20+noise()*2;beta=65+noise()*3;emg=60+noise()*3;break;
+    case 'Sad':     alpha=32+noise()*2;beta=28+noise()*2;emg=20+noise()*1;break;
+  }
+  if(Math.abs(alpha-beta)<3){ beta=alpha>beta?alpha-6:alpha+6; }
+  const raw=alpha+beta;
+  pushChartData(raw,alpha,beta,emg);
+  updateEmotion(alpha,beta,emg);
+  if(recording) recordedData.push({time:(Date.now()-startTime)/1000,rawEEG:raw,alpha,beta,emg,emotion:currentEmotion});
+  setTimeout(runDemo,1000/sampleRate);
+}
+
+// ═══════════════════ SESSION TIMER ═══════════════════
+function startSessionTimer(){
+  setInterval(()=>{
+    sessionSeconds++;
+    const m=Math.floor(sessionSeconds/60), s=sessionSeconds%60;
+    document.getElementById('sessionTime').textContent=
+      String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  },1000);
+}
+
+// ═══════════════════ BLE ═══════════════════
+async function toggleConnection(){
+  if(!connected){ const ok=await connect(); if(ok){connected=true;document.getElementById('connectBtn').textContent='Disconnect';} }
+  else { if(bleDevice&&bleDevice.gatt.connected) bleDevice.gatt.disconnect(); connected=false; document.getElementById('connectBtn').textContent='Connect'; document.getElementById('statusText').textContent='Disconnected'; document.getElementById('statusDot').classList.remove('active'); }
+}
+async function connect(){
+  try{
+    if(!navigator.bluetooth){alert('Bluetooth not supported');return false;}
+    const device=await navigator.bluetooth.requestDevice({filters:[{name:'EarMotion'}],optionalServices:['12345678-1234-5678-1234-56789abcdef0']});
+    bleDevice=device;
+    const server=await device.gatt.connect();
+    const service=await server.getPrimaryService('12345678-1234-5678-1234-56789abcdef0');
+    const char=await service.getCharacteristic('12345678-1234-5678-1234-56789abcdef1');
+    await char.startNotifications();
+    char.addEventListener('characteristicvaluechanged',handleBLE);
+    document.getElementById('statusText').textContent='Connected';
+    document.getElementById('statusDot').classList.add('active');
+    document.getElementById('chat-fab').style.display='flex';
+    buildHourlyBars('hourlyBars','hourLabels');
+    startSessionTimer();
+    return true;
+  }catch(e){ console.log(e); return false; }
+}
+function handleBLE(e){
+  const d=new TextDecoder().decode(e.target.value).trim().split(',').map(Number);
+  if(d.length<3||d.some(isNaN)) return;
+  const emg=d[2];
+  pushChartData(d[1],d[1]*0.6,d[1]*0.4,emg);
+  updateEmotion(d[1]*0.6,d[1]*0.4,emg);
+}
+
+// ═══════════════════ RECORDING ═══════════════════
+function downloadCSV(){
+  if(!recordedData.length){alert('No data recorded. Start demo first.');return;}
+  let csv='time,rawEEG,alpha,beta,emg,emotion\n';
+  recordedData.forEach(r=>csv+=`${r.time},${r.rawEEG},${r.alpha},${r.beta},${r.emg},${r.emotion}\n`);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  const now=new Date(); const mm=String(now.getMonth()+1).padStart(2,'0'), dd=String(now.getDate()).padStart(2,'0');
+  a.download=`EarData${mm}${dd}${now.getFullYear()}.csv`;
+  a.click();
+}
+
+// ═══════════════════ AI CHATBOT ═══════════════════
+const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
+
+const BOT_SYSTEM = `You are EarMotion Companion, a warm and supportive emotional wellness assistant built into the EarMotion device. The user is someone who may have difficulty verbally communicating their emotions (such as a person with autism, cerebral palsy, or other communication challenges).
+
+Your role:
+- Respond with SHORT, simple, friendly messages (2-3 sentences max)
+- Use plain, clear language — avoid complex words
+- Offer gentle coping suggestions when distress is detected
+- Be warm, patient, and never alarming
+- Ask simple yes/no or choice questions when possible
+- If the user seems stressed or sad, validate their feelings first, then offer one simple calming suggestion
+- Never diagnose or give medical advice
+
+Keep responses brief and supportive.`;
+
+let chatHistory = [];
+let chatOpen = false;
+let chatTriggered = false;
+
+function openChat(){
+  chatOpen=true;
+  document.getElementById('chatbot-overlay').classList.add('visible');
+  document.getElementById('chatNotifDot').style.display='none';
+  if(chatHistory.length===0) sendBotGreeting();
+}
+
+function closeChat(){
+  chatOpen=false;
+  document.getElementById('chatbot-overlay').classList.remove('visible');
+}
+
+function triggerChatbot(emotion){
+  if(chatTriggered) return;
+  chatTriggered=true;
+  setTimeout(()=>{ chatTriggered=false; },30000); // cooldown 30s
+
+  document.getElementById('chat-fab').style.display='flex';
+  document.getElementById('chatNotifDot').style.display='block';
+
+  // Auto-open if user view active
+  const userActive=document.getElementById('view-user').classList.contains('active');
+  if(userActive){
+    openChat();
+    const msg = emotion==='Stressed'
+      ? `I noticed you might be feeling stressed right now. I'm here with you. 💙 Would you like to try a quick calming exercise?`
+      : `It looks like you might be feeling a bit down. That's okay. 💜 I'm here. Would you like to talk or try something calming?`;
+    setTimeout(()=>addBotMessage(msg),600);
+    chatHistory.push({role:'assistant',content:msg});
+  }
+}
+
+async function sendBotGreeting(){
+  const greeting="Hi there! 👋 I'm your EarMotion Companion. I'm here whenever you need support. How are you feeling right now?";
+  addBotMessage(greeting);
+  chatHistory.push({role:'assistant',content:greeting});
+}
+
+function addBotMessage(text){
+  const msgs=document.getElementById('chatMessages');
+  const div=document.createElement('div');
+  div.className='chat-msg bot';
+  div.textContent=text;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function addUserMessage(text){
+  const msgs=document.getElementById('chatMessages');
+  const div=document.createElement('div');
+  div.className='chat-msg user';
+  div.textContent=text;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function showTyping(){
+  const msgs=document.getElementById('chatMessages');
+  const div=document.createElement('div');
+  div.className='chat-typing'; div.id='typingIndicator';
+  div.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function hideTyping(){
+  const t=document.getElementById('typingIndicator');
+  if(t) t.remove();
+}
+
+async function sendUserMessage(){
+  const input=document.getElementById('chatInput');
+  const text=input.value.trim();
+  if(!text) return;
+  input.value='';
+
+  addUserMessage(text);
+  chatHistory.push({role:'user',content:text});
+
+  showTyping();
+
+  try{
+    const contextMsg = currentEmotion
+      ? `[Context: EarMotion sensors currently detect the user's emotional state as "${currentEmotion}". Stress index: ${stressIndex.toFixed(0)}/100. Tailor your response accordingly.]`
+      : '';
+
+    const messages = contextMsg
+      ? [{role:'user',content:contextMsg},{role:'assistant',content:'Understood, I will keep this context in mind.'},...chatHistory]
+      : chatHistory;
+
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:ANTHROPIC_MODEL,
+        max_tokens:1000,
+        system:BOT_SYSTEM,
+        messages
+      })
+    });
+    const data=await res.json();
+    hideTyping();
+
+    const reply=data.content?.map(c=>c.type==='text'?c.text:'').join('')||'I\'m here for you. 💙';
+    chatHistory.push({role:'assistant',content:reply});
+    addBotMessage(reply);
+
+  }catch(err){
+    hideTyping();
+    // Fallback responses when API unavailable
+    const fallbacks={
+      Stressed:["Take a slow deep breath with me. In for 4 counts... hold... out for 4. 💙 You're safe.",
+                "It's okay to feel stressed. Would you like to squeeze something soft or take a short break?"],
+      Sad:     ["I see you might be feeling low. That's okay — feelings come and go. 💜 You are not alone.",
+                "Sometimes sitting quietly and breathing helps. Would you like to try that together?"],
+      default: ["I'm here with you. 💙 How can I help right now?",
+                "You're doing great. Is there something specific you'd like help with?"]
+    };
+    const pool=fallbacks[currentEmotion]||fallbacks.default;
+    const reply=pool[Math.floor(Math.random()*pool.length)];
+    chatHistory.push({role:'assistant',content:reply});
+    addBotMessage(reply);
+  }
+}
+
+// ═══════════════════ INIT ═══════════════════
+window.addEventListener('load',()=>{
+  buildHourlyBars('hourlyBars','hourLabels');
+  buildHourlyBars('careHourlyBars','careHourLabels');
+});
+</script>
+</body>
+</html>
