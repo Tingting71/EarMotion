@@ -1,4 +1,4 @@
-# EarMotion (BrainSense): Wearable In-Ear EEG & Facial EMG Emotion Recognition System
+# EarMotion: Wearable In-Ear EEG & Facial EMG Emotion Recognition System
 
 ## Overview
 **EarMotion** (developed under the *BrainSense* project at Johns Hopkins University) is a non-invasive, wearable biosensing system designed to capture neurological and facial neuromuscular responses for continuous emotion recognition. 
